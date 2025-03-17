@@ -22,7 +22,7 @@
         
         <h3 class="text-center">Last Digit: <span id="last-digit" class="text-danger">Waiting for data...</span></h3>
         <h4 class="text-center">Total Digits Collected: <span id="total-digits">0</span></h4>
-        
+
         <div class="text-center mt-3">
             <h2>Most Likely Digit</h2>
             <div class="p-3 mb-3 border rounded bg-light">
@@ -30,13 +30,24 @@
             </div>
         </div>
 
-        <h3 class="text-center mt-4">Digit Probabilities</h3>
-        <div id="digit-probabilities" class="mb-3"></div>
+        <h3 class="text-center mt-4">Percentages Breakdown</h3>
+        <select class="form-select mb-3" id="digit-set-select">
+            <option value="100" selected>Last 100 digits</option>
+            <option value="500">Last 500 digits</option>
+            <option value="1000">Last 1000 digits</option>
+            <option value="5000">Last 5000 digits</option>
+            <option value="10000">Last 10000 digits</option>
+            <option value="20000">Last 20000 digits</option>
+            <option value="50000">Last 50000 digits</option>
+            <option value="100000">Last 100000 digits</option>
+        </select>
 
-        <h3 class="text-center mt-4">Additional Analysis</h3>
+        <div id="digit-display" class="p-2 mb-3 border rounded bg-light text-center">Loading digits...</div>
+        <div id="digit-probabilities" class="p-2 mb-3 border rounded bg-light text-center"></div>
+        <div id="percentages" class="p-2 mb-3 border rounded bg-light text-center">Loading percentages...</div>
+        <div id="over-under" class="p-2 mb-3 border rounded bg-light text-center">Over/Under: Loading...</div>
         <div id="even-odd" class="p-2 mb-3 border rounded bg-light text-center">Even/Odd: Loading...</div>
         <div id="rise-fall" class="p-2 mb-3 border rounded bg-light text-center">Rise/Fall: Loading...</div>
-        <div id="over-under" class="p-2 mb-3 border rounded bg-light text-center">Over/Under: Loading...</div>
     </div>
 
     <script>
@@ -139,8 +150,12 @@
                 updateMostLikelyDigit();
                 updateProbabilityDisplay();
 
-                document.getElementById('even-odd').textContent = calculateEvenOdd(lastDigits).join(' | ');
-                document.getElementById('rise-fall').textContent = calculateRiseFall(lastDigits).join(' | ');
+                const selectedSet = parseInt(document.getElementById('digit-set-select').value);
+                const dataSlice = lastDigits.slice(-selectedSet);
+
+                document.getElementById('digit-display').textContent = `All digits: ${dataSlice.join(' ')}`;
+                document.getElementById('percentages').textContent = calculateEvenOdd(dataSlice).join(' | ');
+                document.getElementById('over-under').textContent = calculateRiseFall(dataSlice).join(' | ');
             }
         };
     </script>
