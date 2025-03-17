@@ -1,106 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deriv Last Digit Tracker</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; background: #f4f4f4; }
-        h1 { margin-top: 20px; color: #333; }
-        #last-digit { font-size: 24px; margin: 10px 0; }
-        #most-likely { font-size: 20px; font-weight: bold; margin-bottom: 20px; }
-        .dropdown { margin-bottom: 10px; }
-        .data-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        .data-box { background: #e0e0e0; padding: 10px; border-radius: 5px; min-width: 300px; }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <h1>Deriv Last Digit Tracker</h1>
-    <div id="last-digit">Last Digit: Waiting for data...</div>
-    <div id="most-likely">Most Likely Digit: Calculating...</div>
-
-    <label for="data-range">Select Data Range:</label>
-    <select id="data-range" class="dropdown">
-        <option value="100" selected>Last 100 digits</option>
-        <option value="500">Last 500 digits</option>
-        <option value="1000">Last 1000 digits</option>
-        <option value="5000">Last 5000 digits</option>
-        <option value="10000">Last 10000 digits</option>
-        <option value="20000">Last 20000 digits</option>
-        <option value="50000">Last 50000 digits</option>
-        <option value="100000">Last 100000 digits</option>
-    </select>
-
-    <h2>Percentages Breakdown</h2>
-    <div class="data-container">
-        <div class="data-box" id="digit-percentages">Digits: Loading...</div>
-        <div class="data-box" id="even-odd">Even/Odd: Loading...</div>
-        <div class="data-box" id="over-under">Over/Under: Loading...</div>
-        <div class="data-box" id="rise-fall">Rise/Fall: Loading...</div>
+    <div class="container mt-5">
+        <h1 class="text-center">Deriv Last Digit Tracker</h1>
+        <h3 class="text-center">Last Digit: <span id="last-digit">Waiting for data...</span></h3>
+        <h4 class="text-center">Total Digits Collected: <span id="total-digits">0</span></h4>
+        
+        <div class="text-center mt-3">
+            <h2>Most Likely Digit</h2>
+            <div class="p-3 mb-3 border rounded bg-light">
+                <strong id="most-likely">Calculating...</strong>
+            </div>
+        </div>
+        
+        <h3 class="text-center mt-4">Percentages Breakdown</h3>
+        <select class="form-select mb-3" id="digit-set-select">
+            <option value="100" selected>Last 100 digits</option>
+            <option value="500">Last 500 digits</option>
+            <option value="1000">Last 1000 digits</option>
+            <option value="5000">Last 5000 digits</option>
+            <option value="10000">Last 10000 digits</option>
+            <option value="20000">Last 20000 digits</option>
+            <option value="50000">Last 50000 digits</option>
+            <option value="100000">Last 100000 digits</option>
+        </select>
+        
+        <div id="digit-display" class="p-2 mb-3 border rounded bg-light text-center">
+            Loading digits...
+        </div>
+        
+        <div id="percentages" class="p-2 mb-3 border rounded bg-light text-center">
+            Loading percentages...
+        </div>
+        
+        <div id="over-under" class="p-2 mb-3 border rounded bg-light text-center">
+            Over/Under: Loading...
+        </div>
+        <div id="even-odd" class="p-2 mb-3 border rounded bg-light text-center">
+            Even/Odd: Loading...
+        </div>
+        <div id="rise-fall" class="p-2 mb-3 border rounded bg-light text-center">
+            Rise/Fall: Loading...
+        </div>
     </div>
 
-<script>
-const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
-let lastDigits = [];
-const digitSets = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
+    <script>
+        const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+        let lastDigits = [];
+        const digitSets = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
 
-function getLastDigit(price) { return price.toString().slice(-1); }
+        function getLastDigit(price) {
+            return price.toString().slice(-1);
+        }
 
-function calculatePercentages(data) {
-    const total = data.length;
-    const counts = Array(10).fill(0);
-    data.forEach(d => counts[parseInt(d)]++);
-    return counts.map((count, digit) => `${digit}: ${(count / total * 100).toFixed(2)}%`).join(', ');
-}
+        function calculatePercentages(data) {
+            const counts = Array(10).fill(0);
+            data.forEach(digit => counts[parseInt(digit)]++);
+            return counts.map(count => ((count / data.length) * 100).toFixed(2) + '%');
+        }
 
-function calculateOverUnder(data) {
-    return Array.from({ length: 9 }, (_, i) => {
-        const over = data.filter(d => parseInt(d) > i).length;
-        return `${i}: ${(over / data.length * 100).toFixed(2)}% Over`;
-    }).join(', ');
-}
+        function calculateOverUnder(data) {
+            return [...Array(9).keys()].map(i => {
+                const over = data.filter(d => parseInt(d) > i).length;
+                return `${((over / data.length) * 100).toFixed(2)}% Over ${i}`;
+            });
+        }
 
-function calculateEvenOdd(data) {
-    const even = data.filter(d => d % 2 === 0).length;
-    const odd = data.length - even;
-    return `Even: ${(even / data.length * 100).toFixed(2)}%, Odd: ${(odd / data.length * 100).toFixed(2)}%`;
-}
+        function calculateEvenOdd(data) {
+            const even = data.filter(d => d % 2 === 0).length;
+            return [
+                `${((even / data.length) * 100).toFixed(2)}% Even`,
+                `${(((data.length - even) / data.length) * 100).toFixed(2)}% Odd`
+            ];
+        }
 
-function calculateRiseFall(data) {
-    let rise = 0, fall = 0;
-    for (let i = 1; i < data.length; i++) {
-        if (data[i] > data[i - 1]) rise++;
-        else if (data[i] < data[i - 1]) fall++;
-    }
-    return `Rise: ${(rise / (data.length - 1) * 100).toFixed(2)}%, Fall: ${(fall / (data.length - 1) * 100).toFixed(2)}%`;
-}
+        function calculateRiseFall(data) {
+            let rise = 0, fall = 0;
+            for (let i = 1; i < data.length; i++) {
+                if (data[i] > data[i - 1]) rise++;
+                else if (data[i] < data[i - 1]) fall++;
+            }
+            return [
+                `${((rise / (data.length - 1)) * 100).toFixed(2)}% Rise`,
+                `${((fall / (data.length - 1)) * 100).toFixed(2)}% Fall`
+            ];
+        }
 
-function mostLikelyDigit(percentages) {
-    let maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
-    return `${maxIndex} (${percentages[maxIndex]}) confidence`;
-}
+        function mostLikelyDigit(percentages) {
+            const maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
+            return `${maxIndex} (${percentages[maxIndex]}) confidence`;
+        }
 
-socket.onopen = () => socket.send(JSON.stringify({ ticks: 'R_100' }));
+        socket.onopen = () => socket.send(JSON.stringify({ ticks: 'R_100' }));
 
-socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.tick) {
-        const lastDigit = getLastDigit(data.tick.quote);
-        lastDigits.push(lastDigit);
-        if (lastDigits.length > 100000) lastDigits.shift();
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.tick) {
+                const lastDigit = getLastDigit(data.tick.quote);
+                lastDigits.push(lastDigit);
+                if (lastDigits.length > 100000) lastDigits.shift();
 
-        document.getElementById('last-digit').textContent = `Last Digit: ${lastDigit}`;
+                document.getElementById('last-digit').textContent = lastDigit;
+                document.getElementById('total-digits').textContent = lastDigits.length;
 
-        const selectedRange = parseInt(document.getElementById('data-range').value);
-        const dataSlice = lastDigits.slice(-selectedRange);
-        const percentages = calculatePercentages(dataSlice);
+                const percentages = calculatePercentages(lastDigits);
+                document.getElementById('most-likely').textContent = mostLikelyDigit(percentages);
 
-        document.getElementById('most-likely').textContent = `Most Likely Digit: ${mostLikelyDigit(percentages)}`;
-        document.getElementById('digit-percentages').textContent = `Digits: ${percentages}`;
-        document.getElementById('even-odd').textContent = calculateEvenOdd(dataSlice);
-        document.getElementById('over-under').textContent = calculateOverUnder(dataSlice);
-        document.getElementById('rise-fall').textContent = calculateRiseFall(dataSlice);
-    }
-};
-</script>
+                const selectedSet = parseInt(document.getElementById('digit-set-select').value);
+                const dataSlice = lastDigits.slice(-selectedSet);
 
+                document.getElementById('digit-display').textContent = `All digits: ${dataSlice.join(' ')}`;
+                document.getElementById('percentages').textContent = percentages.join(' | ');
+                document.getElementById('over-under').textContent = calculateOverUnder(dataSlice).join(' | ');
+                document.getElementById('even-odd').textContent = calculateEvenOdd(dataSlice).join(' | ');
+                document.getElementById('rise-fall').textContent = calculateRiseFall(dataSlice).join(' | ');
+            }
+        };
+    </script>
 </body>
 </html>
