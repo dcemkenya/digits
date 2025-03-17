@@ -1,103 +1,117 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deriv Last Digit Tracker</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; color: #333; }
-        h1 { color: #444; }
-        .section { margin: 20px auto; padding: 10px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); width: 90%; max-width: 800px; }
-        .digit-box { font-size: 1.5em; font-weight: bold; color: #2196F3; }
-        .percent { font-size: 1.2em; font-weight: bold; color: #4CAF50; margin-top: 10px; }
-        .data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
-        .data-item { background: #e0e0e0; padding: 10px; border-radius: 5px; }
-        .highlight { font-size: 1.8em; color: #FF5722; }
-    </style>
-</head>
-<body>
-    <h1>Deriv Last Digit Tracker</h1>
-    <div class="section">
-        <div class="digit-box">Last Digit: <span id="last-digit">Waiting...</span></div>
-        <div class="percent highlight">Most Likely Digit: <span id="most-likely">Calculating...</span></div>
-        <div>Total Digits Collected: <span id="total-digits">0</span></div>
-    </div>
-    <div class="section">
-        <h2>Percentages Breakdown</h2>
-        <div class="data-grid">
-            <div class="data-item">Even: <span id="even-percent">0%</span></div>
-            <div class="data-item">Odd: <span id="odd-percent">0%</span></div>
-            <div class="data-item">Rise: <span id="rise-percent">0%</span></div>
-            <div class="data-item">Fall: <span id="fall-percent">0%</span></div>
-            <div class="data-item">Over 0: <span id="over-0">0%</span></div>
-            <div class="data-item">Under 8: <span id="under-8">0%</span></div>
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+const DIGIT_RANGES = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
+
+const fetchData = async () => {
+    const response = await fetch('https://api.example.com/digits');
+    const data = await response.json();
+    return data;
+};
+
+const calculatePercentages = (digits, total) => {
+    const counts = Array(10).fill(0);
+    digits.forEach(d => counts[d]++);
+    return counts.map(count => ((count / total) * 100).toFixed(2));
+};
+
+const calculateEvenOdd = (digits) => {
+    const even = digits.filter(d => d % 2 === 0).length;
+    const odd = digits.length - even;
+    return { even: ((even / digits.length) * 100).toFixed(2), odd: ((odd / digits.length) * 100).toFixed(2) };
+};
+
+const calculateOverUnder = (digits) => {
+    const results = {};
+    for (let i = 0; i <= 8; i++) {
+        const over = digits.filter(d => d > i).length;
+        const under = digits.filter(d => d < i).length;
+        results[i] = { over: ((over / digits.length) * 100).toFixed(2), under: ((under / digits.length) * 100).toFixed(2) };
+    }
+    return results;
+};
+
+const calculateRiseFall = (digits) => {
+    let rise = 0, fall = 0;
+    for (let i = 1; i < digits.length; i++) {
+        if (digits[i] > digits[i - 1]) rise++;
+        else if (digits[i] < digits[i - 1]) fall++;
+    }
+    return { rise: ((rise / (digits.length - 1)) * 100).toFixed(2), fall: ((fall / (digits.length - 1)) * 100).toFixed(2) };
+};
+
+const findMostLikelyDigit = (percentages) => {
+    const maxPercentage = Math.max(...percentages);
+    const digit = percentages.indexOf(maxPercentage);
+    return { digit, confidence: maxPercentage.toFixed(2) };
+};
+
+export default function DigitTracker() {
+    const [digits, setDigits] = useState([]);
+    const [selectedRange, setSelectedRange] = useState(100);
+
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            const newDigits = await fetchData();
+            setDigits(prev => [...prev, ...newDigits].slice(-100000));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const displayedDigits = digits.slice(-selectedRange);
+    const digitPercentages = calculatePercentages(displayedDigits, displayedDigits.length);
+    const evenOdd = calculateEvenOdd(displayedDigits);
+    const overUnder = calculateOverUnder(displayedDigits);
+    const riseFall = calculateRiseFall(displayedDigits);
+    const mostLikely = findMostLikelyDigit(digitPercentages);
+
+    return (
+        <div className="p-4 space-y-4">
+            <h1 className="text-3xl font-bold text-center">Deriv Last Digit Tracker</h1>
+            <div className="text-center text-xl">Last Digit: {digits[digits.length - 1]}</div>
+            <Card className="p-4 bg-yellow-200">
+                <CardContent className="text-center text-2xl font-bold">
+                    Most Likely Digit: {mostLikely.digit} ({mostLikely.confidence}%)
+                </CardContent>
+            </Card>
+            <div className="flex justify-center">
+                <Select onValueChange={(value) => setSelectedRange(Number(value))}>
+                    <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Select digit range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {DIGIT_RANGES.map(range => (
+                            <SelectItem key={range} value={range.toString()}>{range} digits</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <h2 className="text-2xl font-bold text-center mt-4">Percentages Breakdown</h2>
+            <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-blue-200">
+                    <CardContent className="text-center">Even: {evenOdd.even}% | Odd: {evenOdd.odd}%</CardContent>
+                </Card>
+                <Card className="bg-green-200">
+                    <CardContent className="text-center">Rise: {riseFall.rise}% | Fall: {riseFall.fall}%</CardContent>
+                </Card>
+                {Object.entries(overUnder).map(([key, value]) => (
+                    <Card key={key} className="bg-purple-200">
+                        <CardContent className="text-center">Over {key}: {value.over}% | Under {key}: {value.under}%</CardContent>
+                    </Card>
+                ))}
+            </div>
+            <h2 className="text-2xl font-bold text-center mt-4">Digit Percentages</h2>
+            <div className="grid grid-cols-5 gap-2">
+                {digitPercentages.map((percent, digit) => (
+                    <Card key={digit} className="bg-orange-200">
+                        <CardContent className="text-center text-lg font-semibold">{digit}: {percent}%</CardContent>
+                    </Card>
+                ))}
+            </div>
+            <h2 className="text-2xl font-bold text-center mt-4">Last {selectedRange} Digits</h2>
+            <div className="text-center text-lg font-mono break-words">{displayedDigits.join(' ')}</div>
+            <h2 className="text-2xl font-bold text-center mt-4">Total Digits Collected: {digits.length}</h2>
         </div>
-    </div>
-    <div class="section">
-        <h2>Last 100 Digits</h2>
-        <div id="last-100-digits" class="digit-box" style="font-size: 1.2em; color: #FF9800;">Loading...</div>
-    </div>
-    <script>
-        const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
-        let lastDigits = [];
-
-        function getLastDigit(price) { return price.toString().slice(-1); }
-
-        function calculatePercentages(data) {
-            const total = data.length;
-            const counts = Array(10).fill(0);
-            data.forEach(d => counts[parseInt(d)]++);
-            return counts.map(count => ((count / total) * 100).toFixed(2));
-        }
-
-        function calculateEvenOdd(data) {
-            const even = data.filter(d => d % 2 === 0).length;
-            const odd = data.filter(d => d % 2 !== 0).length;
-            return [(even / data.length * 100).toFixed(2), (odd / data.length * 100).toFixed(2)];
-        }
-
-        function calculateRiseFall(data) {
-            let rise = 0, fall = 0;
-            for (let i = 1; i < data.length; i++) {
-                if (data[i] > data[i - 1]) rise++;
-                else if (data[i] < data[i - 1]) fall++;
-            }
-            return [(rise / (data.length - 1) * 100).toFixed(2), (fall / (data.length - 1) * 100).toFixed(2)];
-        }
-
-        function mostLikelyDigit(percentages) {
-            let maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
-            return `${maxIndex} (${percentages[maxIndex]}%) confidence`;
-        }
-
-        socket.onopen = () => socket.send(JSON.stringify({ ticks: 'R_100' }));
-
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.tick) {
-                const lastDigit = getLastDigit(data.tick.quote);
-                lastDigits.push(lastDigit);
-                if (lastDigits.length > 100000) lastDigits.shift();
-
-                const percentages = calculatePercentages(lastDigits);
-                const [evenPercent, oddPercent] = calculateEvenOdd(lastDigits);
-                const [risePercent, fallPercent] = calculateRiseFall(lastDigits);
-                const likelyDigit = mostLikelyDigit(percentages);
-
-                document.getElementById('last-digit').textContent = lastDigit;
-                document.getElementById('most-likely').textContent = likelyDigit;
-                document.getElementById('total-digits').textContent = lastDigits.length;
-                document.getElementById('even-percent').textContent = `${evenPercent}%`;
-                document.getElementById('odd-percent').textContent = `${oddPercent}%`;
-                document.getElementById('rise-percent').textContent = `${risePercent}%`;
-                document.getElementById('fall-percent').textContent = `${fallPercent}%`;
-                document.getElementById('over-0').textContent = `${(percentages.slice(1).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)).toFixed(2)}%`;
-                document.getElementById('under-8').textContent = `${(percentages.slice(0, 8).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)).toFixed(2)}%`;
-                document.getElementById('last-100-digits').textContent = lastDigits.slice(-100).join('');
-            }
-        };
-
-        socket.onerror = (error) => console.error('WebSocket Error:', error);
-    </script>
-</body>
-</html>
+    );
+}
