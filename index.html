@@ -1,110 +1,112 @@
-// Deriv Last Digit Tracker - Full Script
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deriv Digit Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #last-digit {
+            font-size: 2em;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        .section {
+            margin-top: 20px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+        .data-box {
+            margin: 10px;
+            padding: 10px;
+            display: inline-block;
+            min-width: 250px;
+            background: #ecf0f1;
+            border-radius: 8px;
+        }
+    </style>
+</head>
 
-const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+<body>
 
-// Storage for digits
-let lastDigits = [];
-const digitSets = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
-
-// Extract last digit (handles 2, 3, or 4 decimals, keeps 0)
-function getLastDigit(price) {
-    const priceString = price.toString();
-    return priceString.slice(-1); // Always captures the last character
-}
-
-// Calculate digit percentages 0-9
-function calculatePercentages(data) {
-    const total = data.length;
-    const counts = Array(10).fill(0);
-    data.forEach(digit => counts[parseInt(digit)]++);
-    return counts.map(count => ((count / total) * 100).toFixed(2) + '%');
-}
-
-// Calculate Over/Under percentages
-function calculateOverUnder(data) {
-    const results = [];
-    for (let i = 0; i < 9; i++) {
-        const over = data.filter(d => parseInt(d) > i).length;
-        results.push(((over / data.length) * 100).toFixed(2) + '% Over ' + i);
-    }
-    return results;
-}
-
-// Calculate Even/Odd percentages
-function calculateEvenOdd(data) {
-    const even = data.filter(d => d % 2 === 0).length;
-    const odd = data.filter(d => d % 2 !== 0).length;
-    return [(even / data.length * 100).toFixed(2) + '% Even', (odd / data.length * 100).toFixed(2) + '% Odd'];
-}
-
-// Calculate Rise/Fall percentages
-function calculateRiseFall(data) {
-    let rise = 0, fall = 0;
-    for (let i = 1; i < data.length; i++) {
-        if (data[i] > data[i - 1]) rise++;
-        else if (data[i] < data[i - 1]) fall++;
-    }
-    return [(rise / (data.length - 1) * 100).toFixed(2) + '% Rise', (fall / (data.length - 1) * 100).toFixed(2) + '% Fall'];
-}
-
-// Find most likely next digit
-function mostLikelyDigit(percentages) {
-    let maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
-    return `${maxIndex} (${percentages[maxIndex]}) confidence`;
-}
-
-// WebSocket connection setup
-socket.onopen = () => {
-    console.log('Connected to Deriv WebSocket');
-    socket.send(JSON.stringify({ ticks: 'R_100' })); // Change 'R_100' to any index
-};
-
-// Handle incoming tick data
-socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.tick) {
-        const lastDigit = getLastDigit(data.tick.quote);
-
-        // Store digits (up to 100,000)
-        lastDigits.push(lastDigit);
-        if (lastDigits.length > 100000) lastDigits.shift();
-
-        // Calculate all stats
-        const percentages = calculatePercentages(lastDigits);
-        const overUnder = calculateOverUnder(lastDigits);
-        const evenOdd = calculateEvenOdd(lastDigits);
-        const riseFall = calculateRiseFall(lastDigits);
-        const likelyDigit = mostLikelyDigit(percentages);
-
-        // Update display
-        document.getElementById('last-digit').textContent = `Last Digit: ${lastDigit}`;
-        document.getElementById('most-likely').textContent = `Most Likely Digit: ${likelyDigit}`;
-
-        // Display data for all digit sets
-        digitSets.forEach(set => {
-            const dataSlice = lastDigits.slice(-set);
-            const setPercentages = calculatePercentages(dataSlice);
-            document.getElementById(`set-${set}`).innerHTML = `Last ${set} digits: ${setPercentages.join(', ')}`;
-        });
-
-        document.getElementById('over-under').textContent = overUnder.join(' | ');
-        document.getElementById('even-odd').textContent = evenOdd.join(' | ');
-        document.getElementById('rise-fall').textContent = riseFall.join(' | ');
-    }
-};
-
-socket.onerror = (error) => console.error('WebSocket Error:', error);
-
-// Basic HTML structure
-const html = `
-    <h1>Deriv Digit Tracker</h1>
+    <h1>Deriv Last Digit Tracker</h1>
     <div id="last-digit">Waiting for data...</div>
-    <div id="most-likely">Most Likely Digit: Calculating...</div>
-    ${digitSets.map(set => `<div id="set-${set}">Last ${set} digits: Loading...</div>`).join('')}
-    <div id="over-under">Over/Under: Loading...</div>
-    <div id="even-odd">Even/Odd: Loading...</div>
-    <div id="rise-fall">Rise/Fall: Loading...</div>
-`;
 
-// Inject into body
-document.body.innerHTML = html;
+    <div class="section">
+        <h2>Most Likely Digit</h2>
+        <div id="most-likely">Calculating...</div>
+    </div>
+
+    <div class="section">
+        <h2>Percentages Breakdown</h2>
+        <div id="data-container">
+            <!-- Dynamic data will load here -->
+        </div>
+    </div>
+
+    <script>
+        const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+        let lastDigits = [];
+        const digitSets = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
+
+        function getLastDigit(price) {
+            return price.toString().slice(-1);
+        }
+
+        function calculatePercentages(data) {
+            const total = data.length;
+            const counts = Array(10).fill(0);
+            data.forEach(digit => counts[parseInt(digit)]++);
+            return counts.map(count => ((count / total) * 100).toFixed(2) + '%');
+        }
+
+        function mostLikelyDigit(percentages) {
+            let maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
+            return `${maxIndex} (${percentages[maxIndex]}) confidence`;
+        }
+
+        socket.onopen = () => {
+            console.log('Connected to Deriv WebSocket');
+            socket.send(JSON.stringify({ ticks: 'R_100' }));
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.tick) {
+                const lastDigit = getLastDigit(data.tick.quote);
+                lastDigits.push(lastDigit);
+                if (lastDigits.length > 100000) lastDigits.shift();
+
+                const percentages = calculatePercentages(lastDigits);
+                const likelyDigit = mostLikelyDigit(percentages);
+
+                document.getElementById('last-digit').textContent = `Last Digit: ${lastDigit}`;
+                document.getElementById('most-likely').textContent = `Most Likely Digit: ${likelyDigit}`;
+
+                let dataHTML = '';
+                digitSets.forEach(set => {
+                    const dataSlice = lastDigits.slice(-set);
+                    const setPercentages = calculatePercentages(dataSlice);
+                    dataHTML += `<div class="data-box"><strong>Last ${set} digits:</strong><br>${setPercentages.join(', ')}</div>`;
+                });
+
+                document.getElementById('data-container').innerHTML = dataHTML;
+            }
+        };
+
+        socket.onerror = (error) => console.error('WebSocket Error:', error);
+    </script>
+
+</body>
+</html>
