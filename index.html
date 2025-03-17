@@ -67,51 +67,48 @@ export default function DigitTracker() {
     const mostLikely = findMostLikelyDigit(digitPercentages);
 
     return (
-        <div className="p-4 space-y-4">
-            <h1 className="text-3xl font-bold text-center">Deriv Last Digit Tracker</h1>
-            <div className="text-center text-xl">Last Digit: {digits[digits.length - 1]}</div>
-            <Card className="p-4 bg-yellow-200">
-                <CardContent className="text-center text-2xl font-bold">
-                    Most Likely Digit: {mostLikely.digit} ({mostLikely.confidence}%)
+        <div className="p-6 bg-gray-100 min-h-screen">
+            <h1 className="text-3xl font-bold text-center mb-4">Deriv Last Digit Tracker</h1>
+            <h2 className="text-xl text-center mb-2">Last Digit: <span className="font-semibold">{digits[digits.length - 1]}</span></h2>
+            
+            <Card className="p-4 mb-4">
+                <CardContent>
+                    <h3 className="text-2xl font-semibold text-center">Most Likely Digit</h3>
+                    <p className="text-center text-lg mt-2">Most Likely Digit: <span className="font-bold text-green-600">{mostLikely.digit}</span> ({mostLikely.confidence}%)</p>
                 </CardContent>
             </Card>
-            <div className="flex justify-center">
-                <Select onValueChange={(value) => setSelectedRange(Number(value))}>
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select digit range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {DIGIT_RANGES.map(range => (
-                            <SelectItem key={range} value={range.toString()}>{range} digits</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-            <h2 className="text-2xl font-bold text-center mt-4">Percentages Breakdown</h2>
-            <div className="grid grid-cols-2 gap-4">
-                <Card className="bg-blue-200">
-                    <CardContent className="text-center">Even: {evenOdd.even}% | Odd: {evenOdd.odd}%</CardContent>
-                </Card>
-                <Card className="bg-green-200">
-                    <CardContent className="text-center">Rise: {riseFall.rise}% | Fall: {riseFall.fall}%</CardContent>
-                </Card>
+
+            <Select value={selectedRange} onValueChange={(value) => setSelectedRange(Number(value))}>
+                <SelectTrigger className="w-full mb-4">
+                    <SelectValue placeholder="Select digit range" />
+                </SelectTrigger>
+                <SelectContent>
+                    {DIGIT_RANGES.map(range => (
+                        <SelectItem key={range} value={range}>{range} digits</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <h3 className="text-2xl font-semibold text-center">Percentages Breakdown</h3>
+            <div className="grid grid-cols-2 gap-4 text-lg mb-4">
+                <p>Even: <span className="text-blue-500">{evenOdd.even}%</span> | Odd: <span className="text-blue-500">{evenOdd.odd}%</span></p>
+                <p>Rise: <span className="text-red-500">{riseFall.rise}%</span> | Fall: <span className="text-red-500">{riseFall.fall}%</span></p>
                 {Object.entries(overUnder).map(([key, value]) => (
-                    <Card key={key} className="bg-purple-200">
-                        <CardContent className="text-center">Over {key}: {value.over}% | Under {key}: {value.under}%</CardContent>
-                    </Card>
+                    <p key={key}>Over {key}: <span className="text-green-500">{value.over}%</span> | Under {key}: <span className="text-red-500">{value.under}%</span></p>
                 ))}
             </div>
-            <h2 className="text-2xl font-bold text-center mt-4">Digit Percentages</h2>
-            <div className="grid grid-cols-5 gap-2">
+
+            <h3 className="text-2xl font-semibold text-center">Digit Percentages</h3>
+            <div className="grid grid-cols-5 gap-2 text-center mb-4">
                 {digitPercentages.map((percent, digit) => (
-                    <Card key={digit} className="bg-orange-200">
-                        <CardContent className="text-center text-lg font-semibold">{digit}: {percent}%</CardContent>
-                    </Card>
+                    <div key={digit} className="p-2 bg-gray-200 rounded-lg">{digit}: <span className="font-semibold">{percent}%</span></div>
                 ))}
             </div>
-            <h2 className="text-2xl font-bold text-center mt-4">Last {selectedRange} Digits</h2>
-            <div className="text-center text-lg font-mono break-words">{displayedDigits.join(' ')}</div>
-            <h2 className="text-2xl font-bold text-center mt-4">Total Digits Collected: {digits.length}</h2>
+
+            <h3 className="text-2xl font-semibold text-center">Last {selectedRange} Digits</h3>
+            <p className="text-center text-lg mb-4">{displayedDigits.join(' ')}</p>
+
+            <h3 className="text-xl font-bold text-center">Total Digits Collected: {digits.length}</h3>
         </div>
     );
 }
