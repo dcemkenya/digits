@@ -5,80 +5,98 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deriv Last Digit Tracker</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; text-align: center; margin: 0; padding: 0; }
-        h1 { color: #4a76a8; margin-top: 20px; }
-        #last-digit { font-size: 24px; font-weight: bold; color: #2a9d8f; }
-        #most-likely { background: #f4f4f4; border: 1px solid #ddd; padding: 10px; display: inline-block; border-radius: 8px; margin: 10px 0; font-size: 18px; color: #e63946; }
-        .data-section { margin: 20px auto; padding: 10px; max-width: 90%; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 10px; }
-        .digit-box { display: inline-block; padding: 5px 10px; margin: 2px; border-radius: 5px; background-color: #4a76a8; color: #fff; font-weight: bold; }
-        select, button { padding: 8px; margin: 5px; }
-        .percentage { color: #2a9d8f; font-weight: bold; }
-        #total-collected { font-size: 20px; font-weight: bold; color: #e76f51; margin: 10px 0; }
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; color: #333; }
+        h1 { color: #444; }
+        .section { margin: 20px auto; padding: 10px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); width: 90%; max-width: 800px; }
+        .digit-box { font-size: 1.5em; font-weight: bold; color: #2196F3; }
+        .percent { font-size: 1.2em; font-weight: bold; color: #4CAF50; margin-top: 10px; }
+        .data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
+        .data-item { background: #e0e0e0; padding: 10px; border-radius: 5px; }
+        .highlight { font-size: 1.8em; color: #FF5722; }
     </style>
 </head>
 <body>
     <h1>Deriv Last Digit Tracker</h1>
-    <div id="total-collected">Total Digits Collected: 0</div>
-    <div id="last-digit">Last Digit: Waiting...</div>
-    <div id="most-likely">Most Likely Digit: Calculating...</div>
-    <h2>Percentages Breakdown</h2>
-    <select id="digit-range">
-        <option value="100">Last 100 digits</option>
-        <option value="500">Last 500 digits</option>
-        <option value="1000">Last 1000 digits</option>
-        <option value="5000">Last 5000 digits</option>
-        <option value="10000">Last 10000 digits</option>
-        <option value="20000">Last 20000 digits</option>
-        <option value="50000">Last 50000 digits</option>
-        <option value="100000">Last 100000 digits</option>
-    </select>
-    <div id="digit-data" class="data-section">Waiting for data...</div>
-
+    <div class="section">
+        <div class="digit-box">Last Digit: <span id="last-digit">Waiting...</span></div>
+        <div class="percent highlight">Most Likely Digit: <span id="most-likely">Calculating...</span></div>
+        <div>Total Digits Collected: <span id="total-digits">0</span></div>
+    </div>
+    <div class="section">
+        <h2>Percentages Breakdown</h2>
+        <div class="data-grid">
+            <div class="data-item">Even: <span id="even-percent">0%</span></div>
+            <div class="data-item">Odd: <span id="odd-percent">0%</span></div>
+            <div class="data-item">Rise: <span id="rise-percent">0%</span></div>
+            <div class="data-item">Fall: <span id="fall-percent">0%</span></div>
+            <div class="data-item">Over 0: <span id="over-0">0%</span></div>
+            <div class="data-item">Under 8: <span id="under-8">0%</span></div>
+        </div>
+    </div>
+    <div class="section">
+        <h2>Last 100 Digits</h2>
+        <div id="last-100-digits" class="digit-box" style="font-size: 1.2em; color: #FF9800;">Loading...</div>
+    </div>
     <script>
         const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
         let lastDigits = [];
-        const digitSets = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
 
         function getLastDigit(price) { return price.toString().slice(-1); }
+
         function calculatePercentages(data) {
+            const total = data.length;
             const counts = Array(10).fill(0);
-            data.forEach(digit => counts[parseInt(digit)]++);
-            return counts.map(count => ((count / data.length) * 100).toFixed(2) + '%');
-        }
-        function mostLikelyDigit(percentages) {
-            const maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
-            return `${maxIndex} (${percentages[maxIndex]}) confidence`;
+            data.forEach(d => counts[parseInt(d)]++);
+            return counts.map(count => ((count / total) * 100).toFixed(2));
         }
 
-        socket.onopen = () => { socket.send(JSON.stringify({ ticks: 'R_100' })); };
+        function calculateEvenOdd(data) {
+            const even = data.filter(d => d % 2 === 0).length;
+            const odd = data.filter(d => d % 2 !== 0).length;
+            return [(even / data.length * 100).toFixed(2), (odd / data.length * 100).toFixed(2)];
+        }
+
+        function calculateRiseFall(data) {
+            let rise = 0, fall = 0;
+            for (let i = 1; i < data.length; i++) {
+                if (data[i] > data[i - 1]) rise++;
+                else if (data[i] < data[i - 1]) fall++;
+            }
+            return [(rise / (data.length - 1) * 100).toFixed(2), (fall / (data.length - 1) * 100).toFixed(2)];
+        }
+
+        function mostLikelyDigit(percentages) {
+            let maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
+            return `${maxIndex} (${percentages[maxIndex]}%) confidence`;
+        }
+
+        socket.onopen = () => socket.send(JSON.stringify({ ticks: 'R_100' }));
+
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.tick) {
                 const lastDigit = getLastDigit(data.tick.quote);
                 lastDigits.push(lastDigit);
                 if (lastDigits.length > 100000) lastDigits.shift();
-                document.getElementById('last-digit').textContent = `Last Digit: ${lastDigit}`;
-                document.getElementById('total-collected').textContent = `Total Digits Collected: ${lastDigits.length}`;
+
                 const percentages = calculatePercentages(lastDigits);
-                document.getElementById('most-likely').textContent = `Most Likely Digit: ${mostLikelyDigit(percentages)}`;
-                updateDigitData(lastDigits.slice(-100), percentages);
+                const [evenPercent, oddPercent] = calculateEvenOdd(lastDigits);
+                const [risePercent, fallPercent] = calculateRiseFall(lastDigits);
+                const likelyDigit = mostLikelyDigit(percentages);
+
+                document.getElementById('last-digit').textContent = lastDigit;
+                document.getElementById('most-likely').textContent = likelyDigit;
+                document.getElementById('total-digits').textContent = lastDigits.length;
+                document.getElementById('even-percent').textContent = `${evenPercent}%`;
+                document.getElementById('odd-percent').textContent = `${oddPercent}%`;
+                document.getElementById('rise-percent').textContent = `${risePercent}%`;
+                document.getElementById('fall-percent').textContent = `${fallPercent}%`;
+                document.getElementById('over-0').textContent = `${(percentages.slice(1).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)).toFixed(2)}%`;
+                document.getElementById('under-8').textContent = `${(percentages.slice(0, 8).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)).toFixed(2)}%`;
+                document.getElementById('last-100-digits').textContent = lastDigits.slice(-100).join('');
             }
         };
 
-        function updateDigitData(digits, percentages) {
-            const range = parseInt(document.getElementById('digit-range').value);
-            const dataSlice = lastDigits.slice(-range);
-            const setPercentages = calculatePercentages(dataSlice);
-            const digitsDisplay = dataSlice.map(d => `<span class="digit-box">${d}</span>`).join('');
-            document.getElementById('digit-data').innerHTML = `
-                <h3>Last ${range} digits</h3>
-                ${digitsDisplay}<br>
-                <h4>Percentages</h4>
-                ${setPercentages.map((p, i) => `<span class="percentage">${i}: ${p}</span>`).join(' | ')}
-            `;
-        }
-
-        document.getElementById('digit-range').addEventListener('change', () => updateDigitData(lastDigits, calculatePercentages(lastDigits)));
         socket.onerror = (error) => console.error('WebSocket Error:', error);
     </script>
 </body>
