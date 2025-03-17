@@ -1,115 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-
-const DIGIT_RANGES = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
-
-const fetchData = async () => {
-    const response = await fetch('https://api.example.com/digits');
-    const data = await response.json();
-    return data;
-};
-
-const calculatePercentages = (digits, total) => {
-    const counts = Array(10).fill(0);
-    digits.forEach(d => counts[d]++);
-    return counts.map(count => ((count / total) * 100).toFixed(2));
-};
-
-const calculateEvenOdd = (digits) => {
-    const even = digits.filter(d => d % 2 === 0).length;
-    const odd = digits.length - even;
-    return { even: ((even / digits.length) * 100).toFixed(2), odd: ((odd / digits.length) * 100).toFixed(2) };
-};
-
-const calculateOverUnder = (digits) => {
-    const results = {};
-    for (let i = 0; i <= 8; i++) {
-        const over = digits.filter(d => d > i).length;
-        const under = digits.filter(d => d < i).length;
-        results[i] = { over: ((over / digits.length) * 100).toFixed(2), under: ((under / digits.length) * 100).toFixed(2) };
-    }
-    return results;
-};
-
-const calculateRiseFall = (digits) => {
-    let rise = 0, fall = 0;
-    for (let i = 1; i < digits.length; i++) {
-        if (digits[i] > digits[i - 1]) rise++;
-        else if (digits[i] < digits[i - 1]) fall++;
-    }
-    return { rise: ((rise / (digits.length - 1)) * 100).toFixed(2), fall: ((fall / (digits.length - 1)) * 100).toFixed(2) };
-};
-
-const findMostLikelyDigit = (percentages) => {
-    const maxPercentage = Math.max(...percentages);
-    const digit = percentages.indexOf(maxPercentage);
-    return { digit, confidence: maxPercentage.toFixed(2) };
-};
-
-export default function DigitTracker() {
-    const [digits, setDigits] = useState([]);
-    const [selectedRange, setSelectedRange] = useState(100);
-
-    useEffect(() => {
-        const interval = setInterval(async () => {
-            const newDigits = await fetchData();
-            setDigits(prev => [...prev, ...newDigits].slice(-100000));
-        }, 1000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const displayedDigits = digits.slice(-selectedRange);
-    const digitPercentages = calculatePercentages(displayedDigits, displayedDigits.length);
-    const evenOdd = calculateEvenOdd(displayedDigits);
-    const overUnder = calculateOverUnder(displayedDigits);
-    const riseFall = calculateRiseFall(displayedDigits);
-    const mostLikely = findMostLikelyDigit(digitPercentages);
-
-    return (
-        <div className="p-4 bg-gray-100 min-h-screen">
-            <h1 className="text-3xl font-bold text-center mb-4">Deriv Last Digit Tracker</h1>
-            <h2 className="text-xl text-center mb-4">Last Digit: {digits[digits.length - 1]}</h2>
-            <Card className="p-4 mb-4">
-                <h3 className="text-center text-2xl font-semibold">Most Likely Digit</h3>
-                <p className="text-center text-xl text-green-600 font-bold">{mostLikely.digit} ({mostLikely.confidence}%)</p>
-            </Card>
-
-            <div className="text-center mb-4">
-                <Select value={selectedRange} onValueChange={setSelectedRange}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select Range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {DIGIT_RANGES.map(range => (
-                            <SelectItem key={range} value={range}>{`Last ${range} digits`}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deriv Last Digit Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Deriv Last Digit Tracker</h1>
+        <h3 class="text-center">Last Digit: <span id="last-digit">Waiting for data...</span></h3>
+        <h4 class="text-center">Total Digits Collected: <span id="total-digits">0</span></h4>
+        
+        <div class="text-center mt-3">
+            <h2>Most Likely Digit</h2>
+            <div class="p-3 mb-3 border rounded bg-light">
+                <strong id="most-likely">Calculating...</strong>
             </div>
-
-            <h2 className="text-xl font-semibold text-center mb-2">Percentages Breakdown</h2>
-            <div className="grid grid-cols-2 gap-4">
-                <CardContent className="text-lg">
-                    <p><strong>Even:</strong> {evenOdd.even}% | <strong>Odd:</strong> {evenOdd.odd}%</p>
-                    <p><strong>Rise:</strong> {riseFall.rise}% | <strong>Fall:</strong> {riseFall.fall}%</p>
-                    {Object.entries(overUnder).map(([key, value]) => (
-                        <p key={key}><strong>Over {key}:</strong> {value.over}% | <strong>Under {key}:</strong> {value.under}%</p>
-                    ))}
-                </CardContent>
-
-                <CardContent className="text-lg">
-                    <h3 className="text-xl font-semibold mb-2">Digit Percentages</h3>
-                    {digitPercentages.map((percent, digit) => (
-                        <p key={digit}><strong>{digit}:</strong> {percent}%</p>
-                    ))}
-                </CardContent>
-            </div>
-
-            <h3 className="text-xl font-semibold text-center mt-4">Last {selectedRange} Digits</h3>
-            <CardContent className="text-lg text-center font-mono">{displayedDigits.join(' ')}</CardContent>
-
-            <h4 className="text-xl font-semibold text-center mt-4">Total Digits Collected: {digits.length}</h4>
         </div>
-    );
-}
+        
+        <h3 class="text-center mt-4">Percentages Breakdown</h3>
+        <select class="form-select mb-3" id="digit-set-select">
+            <option value="100" selected>Last 100 digits</option>
+            <option value="500">Last 500 digits</option>
+            <option value="1000">Last 1000 digits</option>
+            <option value="5000">Last 5000 digits</option>
+            <option value="10000">Last 10000 digits</option>
+            <option value="20000">Last 20000 digits</option>
+            <option value="50000">Last 50000 digits</option>
+            <option value="100000">Last 100000 digits</option>
+        </select>
+        
+        <div id="digit-display" class="p-2 mb-3 border rounded bg-light text-center">
+            Loading digits...
+        </div>
+        
+        <div id="percentages" class="p-2 mb-3 border rounded bg-light text-center">
+            Loading percentages...
+        </div>
+        
+        <div id="over-under" class="p-2 mb-3 border rounded bg-light text-center">
+            Over/Under: Loading...
+        </div>
+        <div id="even-odd" class="p-2 mb-3 border rounded bg-light text-center">
+            Even/Odd: Loading...
+        </div>
+        <div id="rise-fall" class="p-2 mb-3 border rounded bg-light text-center">
+            Rise/Fall: Loading...
+        </div>
+    </div>
+
+    <script>
+        const socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+        let lastDigits = [];
+        const digitSets = [100, 500, 1000, 5000, 10000, 20000, 50000, 100000];
+
+        function getLastDigit(price) {
+            return price.toString().slice(-1);
+        }
+
+        function calculatePercentages(data) {
+            const counts = Array(10).fill(0);
+            data.forEach(digit => counts[parseInt(digit)]++);
+            return counts.map(count => ((count / data.length) * 100).toFixed(2) + '%');
+        }
+
+        function calculateOverUnder(data) {
+            return [...Array(9).keys()].map(i => {
+                const over = data.filter(d => parseInt(d) > i).length;
+                return `${((over / data.length) * 100).toFixed(2)}% Over ${i}`;
+            });
+        }
+
+        function calculateEvenOdd(data) {
+            const even = data.filter(d => d % 2 === 0).length;
+            return [
+                `${((even / data.length) * 100).toFixed(2)}% Even`,
+                `${(((data.length - even) / data.length) * 100).toFixed(2)}% Odd`
+            ];
+        }
+
+        function calculateRiseFall(data) {
+            let rise = 0, fall = 0;
+            for (let i = 1; i < data.length; i++) {
+                if (data[i] > data[i - 1]) rise++;
+                else if (data[i] < data[i - 1]) fall++;
+            }
+            return [
+                `${((rise / (data.length - 1)) * 100).toFixed(2)}% Rise`,
+                `${((fall / (data.length - 1)) * 100).toFixed(2)}% Fall`
+            ];
+        }
+
+        function mostLikelyDigit(percentages) {
+            const maxIndex = percentages.indexOf(Math.max(...percentages.map(p => parseFloat(p))));
+            return `${maxIndex} (${percentages[maxIndex]}) confidence`;
+        }
+
+        socket.onopen = () => socket.send(JSON.stringify({ ticks: 'R_100' }));
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.tick) {
+                const lastDigit = getLastDigit(data.tick.quote);
+                lastDigits.push(lastDigit);
+                if (lastDigits.length > 100000) lastDigits.shift();
+
+                document.getElementById('last-digit').textContent = lastDigit;
+                document.getElementById('total-digits').textContent = lastDigits.length;
+
+                const percentages = calculatePercentages(lastDigits);
+                document.getElementById('most-likely').textContent = mostLikelyDigit(percentages);
+
+                const selectedSet = parseInt(document.getElementById('digit-set-select').value);
+                const dataSlice = lastDigits.slice(-selectedSet);
+
+                document.getElementById('digit-display').textContent = `All digits: ${dataSlice.join(' ')}`;
+                document.getElementById('percentages').textContent = percentages.join(' | ');
+                document.getElementById('over-under').textContent = calculateOverUnder(dataSlice).join(' | ');
+                document.getElementById('even-odd').textContent = calculateEvenOdd(dataSlice).join(' | ');
+                document.getElementById('rise-fall').textContent = calculateRiseFall(dataSlice).join(' | ');
+            }
+        };
+    </script>
+</body>
+</html>
